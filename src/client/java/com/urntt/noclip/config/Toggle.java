@@ -13,6 +13,8 @@ public enum Toggle {
 	AXIS_X("axis_x"),
 	AXIS_Y("axis_y"),
 	AXIS_Z("axis_z"),
+	JUMP_UP("jump_up"),
+	SNEAK_DOWN("sneak_down"),
 	BLOCKS("blocks"),
 	FLUIDS("fluids"),
 	WORLD_BORDER("world_border"),

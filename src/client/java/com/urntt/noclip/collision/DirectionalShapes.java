@@ -14,25 +14,26 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
- * The colliders of one movement, split by axis. To vanilla code it is the complete list of colliders, but
- * {@link #forAxis(Iterable, Direction.Axis)} hands vanilla's per-axis collision only the colliders noclip keeps
- * along the noclip axes.
+ * The colliders of one movement, split by direction. To vanilla code it is the complete list of colliders, but
+ * {@link #forMovement(Iterable, Direction.Axis, double)} hands vanilla's per-axis collision only the colliders noclip
+ * keeps when the movement goes in a noclip direction.
  */
-public final class AxisShapes extends AbstractList<VoxelShape> {
+public final class DirectionalShapes extends AbstractList<VoxelShape> {
 	private final List<VoxelShape> all;
 	private final List<VoxelShape> kept;
-	private final Set<Direction.Axis> noclipAxes;
+	private final Set<Direction> noclipDirections;
 
-	private AxisShapes(final List<VoxelShape> all, final List<VoxelShape> kept, final Set<Direction.Axis> noclipAxes) {
+	private DirectionalShapes(final List<VoxelShape> all, final List<VoxelShape> kept,
+			final Set<Direction> noclipDirections) {
 		this.all = all;
 		this.kept = kept;
-		this.noclipAxes = noclipAxes;
+		this.noclipDirections = noclipDirections;
 	}
 
 	/**
 	 * Returns the colliders for the movement of {@code source} under {@code rules}: {@code all}, the list vanilla
-	 * collected, along the axes noclip does not apply to, and only the colliders of the types noclip keeps along the
-	 * others.
+	 * collected, for movement in the directions noclip does not apply to, and only the colliders of the types noclip
+	 * keeps for the others.
 	 *
 	 * <p>The kept colliders are collected the same way as in vanilla's
 	 * {@code Entity.collectCollidersIgnoringWorldBorder(Entity, Level, List, AABB)}, minus the ignored sources.
@@ -51,19 +52,24 @@ public final class AxisShapes extends AbstractList<VoxelShape> {
 			kept.addAll(level.getBlockCollisions(source, boundingBox));
 		}
 
-		if (rules.axes().size() == Direction.Axis.values().length) {
+		if (rules.directions().size() == Direction.values().length) {
 			return kept.build();
 		}
-		return new AxisShapes(all, kept.build(), rules.axes());
+		return new DirectionalShapes(all, kept.build(), rules.directions());
 	}
 
 	/**
-	 * Returns the colliders vanilla should test along {@code axis}: the kept ones for a noclip axis of an
-	 * {@link AxisShapes}, and {@code shapes} itself otherwise.
+	 * Returns the colliders vanilla should test for a movement of {@code distance} along {@code axis}: the kept ones
+	 * when {@code shapes} were split and the movement goes in a noclip direction, and {@code shapes} itself otherwise.
 	 */
-	public static Iterable<VoxelShape> forAxis(final Iterable<VoxelShape> shapes, final Direction.Axis axis) {
-		if (shapes instanceof AxisShapes axisShapes && axisShapes.noclipAxes.contains(axis)) {
-			return axisShapes.kept;
+	public static Iterable<VoxelShape> forMovement(final Iterable<VoxelShape> shapes, final Direction.Axis axis,
+			final double distance) {
+		if (shapes instanceof DirectionalShapes split) {
+			Direction direction = Direction.get(
+					distance > 0.0 ? Direction.AxisDirection.POSITIVE : Direction.AxisDirection.NEGATIVE, axis);
+			if (split.noclipDirections.contains(direction)) {
+				return split.kept;
+			}
 		}
 		return shapes;
 	}

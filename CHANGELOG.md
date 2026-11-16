@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Add "Jump to Pass Up" and "Sneak to Pass Down" settings with toggle key bindings, both off by default. While the jump or sneak key is held, blocks, the world border, and entities that noclip passes through no longer stop upward or downward movement, even with the Y axis off.
+
 ### Fixed
 
 - With Lithium installed, passing through blocks, the world border, and entities along the X and Z axes only worked while stepping up or jumping. It now works all the time.

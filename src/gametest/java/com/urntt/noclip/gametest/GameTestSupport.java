@@ -10,9 +10,11 @@ import java.util.function.Consumer;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -77,10 +79,23 @@ final class GameTestSupport {
 	 * @return how far the player actually moved
 	 */
 	static Vec3 moveBy(final ClientGameTestContext context, final Vec3 delta) {
+		return moveWithInput(context, delta, false, false);
+	}
+
+	/**
+	 * Like {@link #moveBy}, but with the jump and sneak keys held as given while the player moves. The player's
+	 * input is restored afterwards, before the next tick.
+	 */
+	static Vec3 moveWithInput(final ClientGameTestContext context, final Vec3 delta, final boolean jump,
+			final boolean sneak) {
 		return context.computeOnClient(client -> {
-			Vec3 start = client.player.position();
-			client.player.move(MoverType.SELF, delta);
-			return client.player.position().subtract(start);
+			LocalPlayer player = client.player;
+			Input previous = player.input.keyPresses;
+			player.input.keyPresses = new Input(false, false, false, false, jump, sneak, false);
+			Vec3 start = player.position();
+			player.move(MoverType.SELF, delta);
+			player.input.keyPresses = previous;
+			return player.position().subtract(start);
 		});
 	}
 

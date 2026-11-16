@@ -79,6 +79,8 @@ public final class NoClipConfig {
 			case AXIS_X -> s.axes.x;
 			case AXIS_Y -> s.axes.y;
 			case AXIS_Z -> s.axes.z;
+			case JUMP_UP -> s.axes.jumpUp;
+			case SNEAK_DOWN -> s.axes.sneakDown;
 			case BLOCKS -> s.collisions.blocks;
 			case FLUIDS -> s.collisions.fluids;
 			case WORLD_BORDER -> s.collisions.worldBorder;
@@ -97,6 +99,8 @@ public final class NoClipConfig {
 			case AXIS_X -> s.axes.x = value;
 			case AXIS_Y -> s.axes.y = value;
 			case AXIS_Z -> s.axes.z = value;
+			case JUMP_UP -> s.axes.jumpUp = value;
+			case SNEAK_DOWN -> s.axes.sneakDown = value;
 			case BLOCKS -> s.collisions.blocks = value;
 			case FLUIDS -> s.collisions.fluids = value;
 			case WORLD_BORDER -> s.collisions.worldBorder = value;
@@ -123,7 +127,7 @@ public final class NoClipConfig {
 	}
 
 	/**
-	 * Returns what noclip ignores while it is active.
+	 * Returns what noclip ignores while it is active, before holding jump or sneak adds a direction.
 	 */
 	public NoClipRules rules() {
 		NoClipRules rules = this.rules;
@@ -140,7 +144,7 @@ public final class NoClipConfig {
 					axes.add(axis);
 				}
 			}
-			rules = new NoClipRules(types, axes, this.get(Toggle.CLEAR_VIEW));
+			rules = new NoClipRules(types, NoClipRules.bothWays(axes), this.get(Toggle.CLEAR_VIEW));
 			this.rules = rules;
 		}
 		return rules;
@@ -257,11 +261,16 @@ public final class NoClipConfig {
 		}
 	}
 
-	/** The axes along which shape-based collision types are ignored. */
+	/**
+	 * The axes along which shape-based collision types are ignored, and whether holding jump or sneak also ignores
+	 * them for upward or downward movement.
+	 */
 	private static final class Axes {
 		private boolean x = true;
 		private boolean y = false;
 		private boolean z = true;
+		private boolean jumpUp = false;
+		private boolean sneakDown = false;
 	}
 
 	/** The collision types noclip passes through. */

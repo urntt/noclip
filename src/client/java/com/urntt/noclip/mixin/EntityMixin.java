@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.urntt.noclip.NoClipClient;
 import com.urntt.noclip.NoClipRules;
-import com.urntt.noclip.collision.AxisShapes;
+import com.urntt.noclip.collision.DirectionalShapes;
 import com.urntt.noclip.config.CollisionType;
 import java.util.List;
 import net.minecraft.core.Direction;
@@ -57,10 +57,10 @@ public abstract class EntityMixin {
 	}
 
 	/**
-	 * Splits the colliders of the local player's movement by axis while noclip is active. {@code collide} gathers
-	 * its colliders here, both for the plain move and for stepping up. Along the noclip axes, the colliders of the
-	 * ignored types (blocks, the world border, entities) are left out; along the other axes, and for every other
-	 * entity, the colliders stay vanilla.
+	 * Splits the colliders of the local player's movement by direction while noclip is active. {@code collide}
+	 * gathers its colliders here, both for the plain move and for stepping up. For movement in a noclip direction,
+	 * the colliders of the ignored types (blocks, the world border, entities) are left out; for movement in the other
+	 * directions, and for every other entity, the colliders stay vanilla.
 	 */
 	@WrapMethod(method = "collectCollidersIgnoringWorldBorder(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/level/Level;Ljava/util/List;Lnet/minecraft/world/phys/AABB;)Ljava/util/List;")
 	private static List<VoxelShape> noclip$splitColliders(final @Nullable Entity source, final Level level,
@@ -70,18 +70,18 @@ public abstract class EntityMixin {
 		if (source == null || rules == null || !rules.ignoresAnyShapes()) {
 			return all;
 		}
-		return AxisShapes.split(all, source, level, entityColliders, boundingBox, rules);
+		return DirectionalShapes.split(all, source, level, entityColliders, boundingBox, rules);
 	}
 
 	/**
-	 * Hands vanilla's per-axis collision the colliders for that axis, as split by
+	 * Hands vanilla's per-axis collision the colliders for the direction of the movement, as split by
 	 * {@link #noclip$splitColliders}. Lists that were not split, which includes every movement other than the
 	 * local player's with noclip active, pass through unchanged.
 	 */
 	@WrapOperation(method = "collideWithShapes", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/phys/shapes/Shapes;collide(Lnet/minecraft/core/Direction$Axis;Lnet/minecraft/world/phys/AABB;Ljava/lang/Iterable;D)D"))
 	private static double noclip$collideAlongAxis(final Direction.Axis axis, final AABB boundingBox,
 			final Iterable<VoxelShape> shapes, final double distance, final Operation<Double> original) {
-		return original.call(axis, boundingBox, AxisShapes.forAxis(shapes, axis), distance);
+		return original.call(axis, boundingBox, DirectionalShapes.forMovement(shapes, axis, distance), distance);
 	}
 
 	/**

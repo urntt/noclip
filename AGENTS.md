@@ -55,6 +55,7 @@ The mod version itself follows [Semantic Versioning](https://semver.org/); the `
   - slowing blocks: blocks the player can already pass through but that slow them down (cobwebs, sweet berry bushes, powder snow);
   - entities: solid entity hitboxes (boats, minecarts, shulkers) and pushing between the player and nearby entities.
 - Axes: X, Y, and Z are toggled on their own. They apply only to the shape-based types (blocks, world border, entities): along an enabled axis those types are ignored, along the others they collide as usual. Fluids and slowing blocks are effects without an axis. By default X and Z are enabled and Y is not, so the player passes through walls but still stands on the ground.
+- "Jump to pass up" and "sneak to pass down" (both off by default) also ignore the shape-based types for upward movement while the jump key is held, and for downward movement while the sneak key is held, even with the Y axis off. They read the player's movement input, so they follow the player's key bindings. Internally, `NoClipRules` holds the directions of movement in which shapes are ignored.
 - "Only while flying" (off by default) limits noclip to while the player is flying.
 - "Clear view inside blocks" (on by default) hides the in-wall screen overlay and disables occlusion culling while the camera is inside a solid block, like vanilla does for spectators. It applies only while noclip is active and passes through blocks.
 - The main toggle is off by default. Defaults depend on the scene: a singleplayer default (worlds hosted by this client, including ones opened to LAN) and a server default (servers the multiplayer mode allows). Both are off by default.
@@ -86,7 +87,7 @@ The mod version itself follows [Semantic Versioning](https://semver.org/); the `
 ### Testing
 
 - The client game tests in `src/gametest` cover the address matching, the configuration defaults and upgrades, and the controller's rules (`NoClipLogicGameTest`), every collision type, the axes, the toggle keys, the settings screens, and the server set-back in singleplayer (`NoClipClientGameTest`), and each multiplayer mode on a local dedicated server (`NoClipMultiplayerGameTest`). Keep them passing and extend them when behavior changes.
-- Collision checks call `LocalPlayer.move` on the client thread and read the position right away, so they measure the client's own collision handling independently of when the server sets the player back.
+- Collision checks call `LocalPlayer.move` on the client thread and read the position right away, so they measure the client's own collision handling independently of when the server sets the player back. Checks that need the jump or sneak key set the player's movement input around that call.
 - Run the client game tests both without and with `-PwithLithium`; CI does both.
 - The dedicated server needs `eula = true` in the `configureTests` block of `build.gradle`; it accepts the Minecraft EULA only for that local test server.
 - After porting to a new Minecraft version, run the client game tests. A successful build does not prove that the mixins still have the intended effect.

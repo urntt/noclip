@@ -79,6 +79,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		check(!config.isEnabled(), "noclip should be off by default");
 		check(config.get(Toggle.AXIS_X) && !config.get(Toggle.AXIS_Y) && config.get(Toggle.AXIS_Z),
 				"only the X and Z axes should be enabled by default");
+		check(!config.get(Toggle.JUMP_UP) && !config.get(Toggle.SNEAK_DOWN),
+				"jump to pass up and sneak to pass down should be off by default");
 		for (CollisionType type : CollisionType.values()) {
 			check(config.get(Toggle.forType(type)), type + " should be passed through by default");
 		}
@@ -93,7 +95,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		check(Files.exists(directory.resolve("defaults.json")), "a missing config file should be created");
 
 		NoClipRules rules = config.rules();
-		check(rules.axes().equals(EnumSet.of(Direction.Axis.X, Direction.Axis.Z)), "default rules should use X and Z");
+		check(rules.directions().equals(EnumSet.of(Direction.EAST, Direction.WEST, Direction.SOUTH, Direction.NORTH)),
+				"default rules should pass through along X and Z");
 		check(rules.ignoredTypes().equals(EnumSet.allOf(CollisionType.class)), "default rules should ignore every type");
 		check(rules.keepsViewClear(), "default rules should keep the view clear");
 	}
@@ -127,6 +130,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		check(config.isEnabled(), "existing settings should be kept");
 		check(config.get(Toggle.AXIS_X) && config.get(Toggle.AXIS_Y) && config.get(Toggle.AXIS_Z),
 				"missing axes should get their defaults next to the saved one");
+		check(!config.get(Toggle.JUMP_UP) && !config.get(Toggle.SNEAK_DOWN),
+				"settings added in 1.1.0 should get their defaults when upgrading a 1.0.0 file");
 		for (CollisionType type : CollisionType.values()) {
 			check(config.get(Toggle.forType(type)), "a missing collision object should fall back to defaults");
 		}
@@ -151,13 +156,24 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 				"effect types should not depend on the axes");
 		check(!noAxes.keepsViewClear(), "the view should only be kept clear while passing through blocks");
 
-		NoClipRules fluidsOnly = new NoClipRules(EnumSet.of(CollisionType.FLUIDS), EnumSet.of(Direction.Axis.X), true);
+		NoClipRules fluidsOnly = new NoClipRules(EnumSet.of(CollisionType.FLUIDS),
+				NoClipRules.bothWays(EnumSet.of(Direction.Axis.X)), true);
 		check(!fluidsOnly.ignoresAnyShapes(), "fluids are not shapes");
 		check(!fluidsOnly.keepsViewClear(), "the view should only be kept clear while passing through blocks");
 
-		NoClipRules entitiesOnly = new NoClipRules(EnumSet.of(CollisionType.ENTITIES), EnumSet.of(Direction.Axis.Y), false);
+		NoClipRules entitiesOnly = new NoClipRules(EnumSet.of(CollisionType.ENTITIES),
+				NoClipRules.bothWays(EnumSet.of(Direction.Axis.Y)), false);
+		check(entitiesOnly.directions().equals(EnumSet.of(Direction.UP, Direction.DOWN)), "the Y axis means up and down");
 		check(entitiesOnly.ignoresAnyShapes(), "entity hitboxes are shapes");
 		check(!entitiesOnly.ignores(CollisionType.BLOCKS), "blocks were not selected");
+
+		NoClipRules upOnly = noAxes.withDirections(EnumSet.of(Direction.UP));
+		check(upOnly.directions().equals(EnumSet.of(Direction.UP)), "holding jump should add only the upward direction");
+		check(upOnly.ignores(CollisionType.BLOCKS) && upOnly.keepsViewClear(),
+				"a single direction should be enough to pass through blocks");
+		NoClipRules horizontal = new NoClipRules(all, NoClipRules.bothWays(EnumSet.of(Direction.Axis.X)), true);
+		check(horizontal.withDirections(EnumSet.of(Direction.EAST)) == horizontal,
+				"adding a direction that is already there should keep the rules");
 	}
 
 	private static void checkOnlyWhileFlying(final Path directory) {

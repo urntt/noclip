@@ -32,7 +32,8 @@ public final class NoClipConfigScreen extends OptionsSubScreen {
 		NoClipConfig config = NoClipClient.config();
 
 		this.addToggles("options.noclip.section.current", config, Toggle.ENABLED);
-		this.addToggles("options.noclip.section.axes", config, Toggle.AXIS_X, Toggle.AXIS_Y, Toggle.AXIS_Z);
+		this.addToggles("options.noclip.section.axes", config, Toggle.AXIS_X, Toggle.AXIS_Y, Toggle.AXIS_Z,
+				Toggle.JUMP_UP, Toggle.SNEAK_DOWN);
 		this.addToggles("options.noclip.section.collisions", config, Toggle.BLOCKS, Toggle.FLUIDS, Toggle.WORLD_BORDER,
 				Toggle.SLOWING_BLOCKS, Toggle.ENTITIES);
 		this.addToggles("options.noclip.section.options", config, Toggle.ONLY_WHILE_FLYING, Toggle.CLEAR_VIEW);

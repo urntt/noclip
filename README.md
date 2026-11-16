@@ -54,6 +54,8 @@ All settings are saved to `config/noclip.json` as soon as you change them.
 | Noclip on X Axis | On | Blocks, the world border, and entities that noclip passes through do not stop movement east and west. |
 | Noclip on Y Axis | Off | The same for movement up and down. Unless you fly, you fall through the ground. |
 | Noclip on Z Axis | On | The same for movement north and south. |
+| Jump to Pass Up | Off | While you hold the jump key, blocks, the world border, and entities that noclip passes through do not stop you from moving up, even with the Y axis off. |
+| Sneak to Pass Down | Off | While you hold the sneak key, they do not stop you from moving down, even with the Y axis off. Unless you fly, you fall through the ground. |
 | Pass Through Blocks | On | Move through blocks along the noclip axes, without being pushed out of them or forced to crouch or crawl inside them. |
 | Pass Through Fluids | On | Move through water and lava as if they were air: no drag, currents, buoyancy, swimming, or bubble columns. |
 | Pass Through World Border | On | Move through the world border along the noclip axes. |
@@ -68,7 +70,7 @@ All settings are saved to `config/noclip.json` as soon as you change them.
 | Multiplayer mode | Disabled | **Disabled**: never active on servers. **Whitelist**: active only on servers in the server list. **Blacklist**: active on all servers except those in the server list. |
 | Server List | Empty | The addresses the whitelist and blacklist modes use. |
 
-The axes only apply to blocks, the world border, and entities. Fluids and slowing blocks are passed through as a whole.
+The axes, and passing up or down with the jump and sneak keys, only apply to blocks, the world border, and entities. Fluids and slowing blocks are passed through as a whole. The jump and sneak keys are the ones set in the game's controls.
 
 The multiplayer mode is a hard limit: on a server it rules out, noclip stays off whatever the current state is. Joining another player's LAN world or a Realm counts as multiplayer.
 

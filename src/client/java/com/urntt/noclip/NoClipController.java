@@ -1,14 +1,19 @@
 package com.urntt.noclip;
 
 import com.urntt.noclip.config.NoClipConfig;
+import com.urntt.noclip.config.Toggle;
+import java.util.EnumSet;
+import java.util.Set;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.player.Input;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Decides whether noclip is active right now, from the configuration, the current {@link Scene}, and whether the
- * player is flying. It is the only place that combines the toggle state, the defaults, the reset rules, the
- * multiplayer rules, and "only while flying".
+ * Decides whether noclip is active right now, from the configuration, the current {@link Scene}, whether the player
+ * is flying, and whether they hold jump or sneak. It is the only place that combines the toggle state, the defaults,
+ * the reset rules, the multiplayer rules, "only while flying", and the jump and sneak settings.
  */
 public final class NoClipController {
 	/** Outcome of {@link #toggle()}. */
@@ -63,13 +68,28 @@ public final class NoClipController {
 
 	/**
 	 * Returns what noclip ignores for {@code entity} right now, or {@code null} if noclip does not apply to it. Only
-	 * the local player is ever affected.
+	 * the local player is ever affected. Holding the jump or sneak key adds the upward or downward direction when
+	 * the corresponding setting is on.
 	 */
 	public @Nullable NoClipRules rulesFor(final @Nullable Entity entity) {
-		if (entity instanceof LocalPlayer player && this.isActive(player.getAbilities().flying)) {
-			return this.config.rules();
+		if (!(entity instanceof LocalPlayer player) || !this.isActive(player.getAbilities().flying)) {
+			return null;
 		}
-		return null;
+		NoClipRules rules = this.config.rules();
+		Input input = player.input.keyPresses;
+		boolean up = input.jump() && this.config.get(Toggle.JUMP_UP);
+		boolean down = input.shift() && this.config.get(Toggle.SNEAK_DOWN);
+		if (!up && !down) {
+			return rules;
+		}
+		Set<Direction> held = EnumSet.noneOf(Direction.class);
+		if (up) {
+			held.add(Direction.UP);
+		}
+		if (down) {
+			held.add(Direction.DOWN);
+		}
+		return rules.withDirections(held);
 	}
 
 	/**

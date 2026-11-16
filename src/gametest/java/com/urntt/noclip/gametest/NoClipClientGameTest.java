@@ -1,6 +1,7 @@
 package com.urntt.noclip.gametest;
 
 import static com.urntt.noclip.gametest.GameTestSupport.LOGGER;
+import static com.urntt.noclip.gametest.GameTestSupport.PROBE_DISTANCE;
 import static com.urntt.noclip.gametest.GameTestSupport.bindKey;
 import static com.urntt.noclip.gametest.GameTestSupport.center;
 import static com.urntt.noclip.gametest.GameTestSupport.check;
@@ -11,6 +12,7 @@ import static com.urntt.noclip.gametest.GameTestSupport.fill;
 import static com.urntt.noclip.gametest.GameTestSupport.get;
 import static com.urntt.noclip.gametest.GameTestSupport.loadSavedConfig;
 import static com.urntt.noclip.gametest.GameTestSupport.moveBy;
+import static com.urntt.noclip.gametest.GameTestSupport.moveWithInput;
 import static com.urntt.noclip.gametest.GameTestSupport.prepare;
 import static com.urntt.noclip.gametest.GameTestSupport.set;
 import static com.urntt.noclip.gametest.GameTestSupport.teleport;
@@ -47,6 +49,8 @@ import net.minecraft.world.phys.Vec3;
 public final class NoClipClientGameTest implements FabricClientGameTest {
 	private static final Vec3 EAST = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3 SOUTH = new Vec3(0.0, 0.0, 1.0);
+	/** Height of the standing player's bounding box. */
+	private static final double PLAYER_HEIGHT = 1.8;
 	/** Distance between the areas of the individual checks. */
 	private static final int AREA_SPACING = 6;
 	/** Ticks the forward key is held when comparing walking speeds. */
@@ -125,6 +129,8 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 		check(Math.abs(downWithY + 0.5) < 1.0E-6, "the Y axis should let the player into the ground, moved " + downWithY);
 		checkSetBack(context, start, "after moving into the ground");
 
+		checkJumpAndSneak(context, server, area, start);
+
 		set(context, Toggle.ONLY_WHILE_FLYING, true);
 		checkProbe(context, EAST, false, "into a wall walking with only while flying");
 		teleport(context, server, start);
@@ -140,7 +146,49 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 		checkSetBack(context, start, "after moving into a wall while flying");
 		set(context, Toggle.ONLY_WHILE_FLYING, false);
 
-		fill(context, server, area.offset(-1, 0, -1), area.offset(1, 1, 1), Blocks.AIR);
+		fill(context, server, area.offset(-1, 0, -1), area.offset(1, 2, 1), Blocks.AIR);
+	}
+
+	/**
+	 * A block right above the player's head and the ground below, with the Y axis off: holding jump passes up through
+	 * the block only with "jump to pass up", and holding sneak passes down through the ground only with "sneak to
+	 * pass down". Neither key opens the other direction.
+	 */
+	private static void checkJumpAndSneak(final ClientGameTestContext context, final TestServerContext server,
+			final BlockPos area, final Vec3 start) {
+		fill(context, server, area.above(2), area.above(2), Blocks.STONE);
+		Vec3 up = new Vec3(0.0, PROBE_DISTANCE, 0.0);
+		Vec3 down = new Vec3(0.0, -0.5, 0.0);
+		double headroom = 2.0 - PLAYER_HEIGHT;
+
+		checkVertical(context, moveWithInput(context, up, true, false).y, headroom,
+				"up holding jump without jump to pass up");
+		teleport(context, server, start);
+		set(context, Toggle.JUMP_UP, true);
+		checkVertical(context, moveWithInput(context, up, false, false).y, headroom,
+				"up without holding jump");
+		teleport(context, server, start);
+		checkVertical(context, moveWithInput(context, up, true, false).y, PROBE_DISTANCE,
+				"up holding jump with jump to pass up");
+		checkSetBack(context, start, "after jumping into a block");
+		checkVertical(context, moveWithInput(context, down, true, false).y, 0.0, "down holding jump");
+		set(context, Toggle.JUMP_UP, false);
+
+		checkVertical(context, moveWithInput(context, down, false, true).y, 0.0,
+				"down holding sneak without sneak to pass down");
+		set(context, Toggle.SNEAK_DOWN, true);
+		checkVertical(context, moveWithInput(context, down, false, true).y, down.y,
+				"down holding sneak with sneak to pass down");
+		checkSetBack(context, start, "after sneaking into the ground");
+		checkVertical(context, moveWithInput(context, up, false, true).y, headroom, "up holding sneak");
+		set(context, Toggle.SNEAK_DOWN, false);
+		teleport(context, server, start);
+	}
+
+	private static void checkVertical(final ClientGameTestContext context, final double moved, final double expected,
+			final String situation) {
+		LOGGER.info("Moved {} {}", String.format(Locale.ROOT, "%.3f", moved), situation);
+		check(Math.abs(moved - expected) < 1.0E-6, "expected to move " + expected + " " + situation + ", moved " + moved);
 	}
 
 	/**
