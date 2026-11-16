@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- With Lithium installed, passing through blocks, the world border, and entities along the X and Z axes only worked while stepping up or jumping. It now works all the time.
+
 ## [1.0.0+26.3] - 2026-11-16
 
 ### Added

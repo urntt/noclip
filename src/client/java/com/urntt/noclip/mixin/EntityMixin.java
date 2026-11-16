@@ -17,12 +17,45 @@ import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin {
+	@Shadow
+	private static List<VoxelShape> collectCollidersIgnoringWorldBorder(final @Nullable Entity source, final Level level,
+			final List<VoxelShape> entityColliders, final AABB boundingBox) {
+		throw new AssertionError();
+	}
+
+	@Shadow
+	private static Vec3 collideWithShapes(final Vec3 movement, final AABB boundingBox, final List<VoxelShape> shapes) {
+		throw new AssertionError();
+	}
+
+	/**
+	 * Resolves the local player's plain move (not stepping up) with vanilla's colliders while noclip ignores
+	 * collision shapes, so {@link #noclip$splitColliders} and {@link #noclip$collideAlongAxis} apply. This is the
+	 * body of vanilla's {@code collideBoundingBox(Entity, Vec3, AABB, Level, List)}. It is called directly because
+	 * performance mods such as Lithium replace that call with their own collision code. The entity colliders are
+	 * collected again, because such mods may also postpone collecting them. Every other movement, and the local
+	 * player's while noclip ignores no shapes, keeps whatever implementation is installed.
+	 */
+	@WrapOperation(method = "collide", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/Entity;collideBoundingBox(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/phys/Vec3;Lnet/minecraft/world/phys/AABB;Lnet/minecraft/world/level/Level;Ljava/util/List;)Lnet/minecraft/world/phys/Vec3;"))
+	private Vec3 noclip$collideWithVanillaColliders(final Entity source, final Vec3 movement, final AABB boundingBox,
+			final Level level, final List<VoxelShape> entityColliders, final Operation<Vec3> original) {
+		NoClipRules rules = NoClipClient.controller().rulesFor(source);
+		if (rules == null || !rules.ignoresAnyShapes()) {
+			return original.call(source, movement, boundingBox, level, entityColliders);
+		}
+		AABB sweep = boundingBox.expandTowards(movement);
+		List<VoxelShape> colliders = collectCollidersIgnoringWorldBorder(source, level,
+				level.getEntityCollisions(source, sweep), sweep);
+		return collideWithShapes(movement, boundingBox, colliders);
+	}
+
 	/**
 	 * Splits the colliders of the local player's movement by axis while noclip is active. {@code collide} gathers
 	 * its colliders here, both for the plain move and for stepping up. Along the noclip axes, the colliders of the

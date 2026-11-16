@@ -74,6 +74,7 @@ The mod version itself follows [Semantic Versioning](https://semver.org/); the `
 - Required: Fabric Loader and Fabric API.
 - Optional: Mod Menu, declared under `suggests` in `fabric.mod.json`. The mod must load and work normally without it, so Mod Menu classes may only be referenced from the Mod Menu entrypoint. nomovementcheck is also listed under `suggests` as a hint; nothing references it.
 - Configuration is hand-written without a config library: a JSON file in the Fabric config directory, serialized with Gson (bundled with Minecraft). Any configuration screen uses vanilla widgets.
+- Test-only: [Lithium](https://modrinth.com/mod/lithium), from the Modrinth Maven repository at `lithium_version`, is loaded into the development client only with `-PwithLithium`. It replaces the game's entity collision code (it `@Redirect`s the `collideBoundingBox` call in `Entity.collide`), so the client game tests run against it as well. The mod itself never depends on it.
 - Do not add other dependencies without the user's explicit approval.
 
 ### Implementation
@@ -86,13 +87,14 @@ The mod version itself follows [Semantic Versioning](https://semver.org/); the `
 
 - The client game tests in `src/gametest` cover the address matching, the configuration defaults and upgrades, and the controller's rules (`NoClipLogicGameTest`), every collision type, the axes, the toggle keys, the settings screens, and the server set-back in singleplayer (`NoClipClientGameTest`), and each multiplayer mode on a local dedicated server (`NoClipMultiplayerGameTest`). Keep them passing and extend them when behavior changes.
 - Collision checks call `LocalPlayer.move` on the client thread and read the position right away, so they measure the client's own collision handling independently of when the server sets the player back.
+- Run the client game tests both without and with `-PwithLithium`; CI does both.
 - The dedicated server needs `eula = true` in the `configureTests` block of `build.gradle`; it accepts the Minecraft EULA only for that local test server.
 - After porting to a new Minecraft version, run the client game tests. A successful build does not prove that the mixins still have the intended effect.
 - `README.md` describes how to run them, including on a headless machine.
 
 ### CI, releases, and changelog
 
-- GitHub Actions (`.github/workflows/build.yml`) builds the project and runs the client game tests on every push and pull request.
+- GitHub Actions (`.github/workflows/build.yml`) builds the project and runs the client game tests on every push and pull request, once without and once with Lithium.
 - Maintain `CHANGELOG.md` following [Keep a Changelog](https://keepachangelog.com/). Record every user-visible change under `Unreleased` in the same change that introduces it.
 - `.github/workflows/release.yml` builds the mod and publishes a GitHub Release for the project version, with the jar attached and the matching `CHANGELOG.md` section as release notes. It runs when a tag `v<version>` (for example `v1.0.0+26.3`) is pushed, or when started manually on a branch, in which case it creates that tag on the branch's latest commit. It fails if a pushed tag does not match the project version, if the changelog has no section for the version, or if the release already exists.
 - Release only when the user asks. To release, set `mod_version` in `gradle.properties`, rename `Unreleased` in `CHANGELOG.md` to `[<version>] - <YYYY-MM-DD>` above a new empty `Unreleased` section, commit, and push. Then start the release workflow on `main`. Claude Code cloud sessions cannot push tags, so start the workflow through the GitHub Actions API instead.

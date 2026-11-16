@@ -43,3 +43,14 @@ jobs:
         with:
           name: Client game test screenshots
           path: build/run/clientGameTest/screenshots/
+      # Lithium replaces the game's entity collision code, so run the tests
+      # once more with it loaded in the development client.
+      - name: run client game tests with Lithium
+        if: always()
+        run: xvfb-run -a -s "-screen 0 1920x1080x24" ./gradlew runClientGameTest -PwithLithium
+      - name: capture client game test screenshots with Lithium
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Client game test screenshots with Lithium
+          path: build/run/clientGameTest/screenshots/

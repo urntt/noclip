@@ -12,6 +12,13 @@ repositories {
 			includeGroup 'com.terraformersmc'
 		}
 	}
+	maven {
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
+		content {
+			includeGroup 'maven.modrinth'
+		}
+	}
 }
 
 loom {
@@ -45,6 +52,12 @@ dependencies {
 	// Mod Menu is optional: compile against it, and load it only in the development client.
 	clientCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
 	localRuntime "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+	// Lithium replaces the game's entity collision code. Pass -PwithLithium to load it in the development client
+	// and run the client game tests against it; it is never a dependency of the mod itself.
+	if (providers.gradleProperty("withLithium").present) {
+		localRuntime "maven.modrinth:lithium:${project.lithium_version}"
+	}
 }
 
 def javaVersion = project.java_version as int

@@ -76,7 +76,7 @@ Server list entries are compared with the address you connect to, ignoring upper
 
 ### Compatibility
 
-The mod changes how the game collects the colliders of your movement. Mods that replace that part of the game, for example performance mods that rewrite entity collisions, may conflict with it.
+The mod changes how the game collects the colliders of your movement. It works with [Lithium](https://modrinth.com/mod/lithium), which replaces the game's entity collision code: the client game tests also run with Lithium installed. Other mods that rewrite entity collisions may still conflict with it.
 
 ## Development
 
@@ -94,6 +94,12 @@ Run the client game tests, which start Minecraft and check every collision type,
 
 ```bash
 ./gradlew runClientGameTest
+```
+
+Run them again with Lithium loaded in the development client, the version set by `lithium_version` in `gradle.properties`:
+
+```bash
+./gradlew runClientGameTest -PwithLithium
 ```
 
 The game tests need a display. On a headless Linux machine, run them under Xvfb. Xvfb offers no sRGB-capable OpenGL visuals, so install Mesa's Vulkan driver (`mesa-vulkan-drivers` on Ubuntu) for the game to fall back to:
