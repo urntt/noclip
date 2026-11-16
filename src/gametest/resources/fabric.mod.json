@@ -1,0 +1,17 @@
+{
+	"schemaVersion": 1,
+	"id": "noclip-gametest",
+	"version": "0.0.0",
+	"name": "noclip game tests",
+	"environment": "client",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.urntt.noclip.gametest.NoClipLogicGameTest",
+			"com.urntt.noclip.gametest.NoClipClientGameTest",
+			"com.urntt.noclip.gametest.NoClipMultiplayerGameTest"
+		]
+	},
+	"depends": {
+		"noclip": "*"
+	}
+}
