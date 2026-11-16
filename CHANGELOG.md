@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.0.0+26.3] - 2026-11-16
+
 ### Added
 
 - Remove the local player's client-side collisions while noclip is on. It is off by default.
