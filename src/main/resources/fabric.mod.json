@@ -1,0 +1,42 @@
+{
+	"schemaVersion": 1,
+	"id": "noclip",
+	"version": "${version}",
+	"name": "noclip",
+	"description": "Removes the local player's client-side collisions.",
+	"authors": [
+		"urntt"
+	],
+	"contact": {
+		"homepage": "https://github.com/urntt/noclip",
+		"sources": "https://github.com/urntt/noclip",
+		"issues": "https://github.com/urntt/noclip/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/noclip/icon.png",
+	"environment": "client",
+	"entrypoints": {
+		"client": [
+			"com.urntt.noclip.NoClipClient"
+		],
+		"modmenu": [
+			"com.urntt.noclip.compat.ModMenuIntegration"
+		]
+	},
+	"mixins": [
+		{
+			"config": "noclip.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=${loader_version}",
+		"minecraft": "~${minecraft_version}",
+		"java": ">=${java_version}",
+		"fabric-api": ">=${fabric_api_version}"
+	},
+	"suggests": {
+		"modmenu": "*",
+		"nomovementcheck": "*"
+	}
+}
