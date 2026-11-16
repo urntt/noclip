@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.1.0+26.3] - 2026-11-16
+
 ### Added
 
 - Add "Jump to Pass Up" and "Sneak to Pass Down" settings with toggle key bindings, both off by default. While the jump or sneak key is held, blocks, the world border, and entities that noclip passes through no longer stop upward or downward movement, even with the Y axis off.
