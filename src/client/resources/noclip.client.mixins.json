@@ -1,0 +1,19 @@
+{
+	"required": true,
+	"package": "com.urntt.noclip.mixin",
+	"compatibilityLevel": "JAVA_${java_version}",
+	"client": [
+		"CameraMixin",
+		"EntityFluidInteractionMixin",
+		"EntityMixin",
+		"LevelExtractorMixin",
+		"LocalPlayerMixin",
+		"PlayerMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}
