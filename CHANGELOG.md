@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [1.2.0+26.3] - 2026-11-26
+
 ### Added
 
 - Add a configuration mode as the first button of the configuration screen. **Disabled** turns noclip off and makes the toggle keys change nothing, **Custom** uses the mod's own settings, and **OneConfig** uses the settings in OneConfig.
