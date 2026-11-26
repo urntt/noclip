@@ -1,0 +1,73 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <!-- a runner pictogram, leaning into its run to the right -->
+    <g id="runner" fill="none" stroke="#ff4fa0" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="293" cy="131" r="31" fill="#ff4fa0" stroke="none"/>
+      <path d="M273 200 L263 276" stroke-width="62"/>
+      <path d="M258 186 L198 184 L152 214" stroke-width="32"/>
+      <path d="M296 198 L356 205 L383 152" stroke-width="32"/>
+      <path d="M268 272 L334 302 L362 376" stroke-width="34"/>
+      <path d="M258 282 L230 331 L106 333" stroke-width="34"/>
+    </g>
+
+    <!-- the runner with its speed trail: copies stretched sideways away from the wall -->
+    <g id="trail">
+      <use xlink:href="#runner" transform="translate(213 0) scale(1.18 1) translate(-213 0)" opacity="0.3"/>
+      <use xlink:href="#runner" transform="translate(213 0) scale(1.09 1) translate(-213 0)" opacity="0.55"/>
+      <use xlink:href="#runner"/>
+    </g>
+
+    <!-- the wall the runner is passing through -->
+    <clipPath id="wall">
+      <rect x="184" y="60" width="58" height="360"/>
+    </clipPath>
+    <clipPath id="outside-wall">
+      <path d="M0 60 H184 V420 H0 Z M242 60 H500 V420 H242 Z"/>
+    </clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="none"/>
+  <g transform="translate(0 50)">
+    <!-- hair clip: unchanged -->
+    <g transform="translate(600 120) rotate(20 130 58) scale(1.5)">
+    <path d="M28 57
+             C28 49, 28 42, 29 36
+             C31 27, 39 23, 48 27
+             C67 35, 89 43, 105 50
+             C115 54, 115 58, 105 62
+             C89 69, 67 78, 48 86
+             C39 90, 31 86, 29 77
+             C28 70, 28 64, 28 57
+             Z"
+          fill="#ff4fa0"/>
+    <path d="M104 16 L104 69
+             C104 108, 156 108, 156 69
+             L156 16"
+          fill="none"
+          stroke="#ff4fa0"
+          stroke-width="22"
+          stroke-linecap="round"
+          stroke-linejoin="round"/>
+    <path d="M232 57
+             C232 49, 232 42, 231 36
+             C229 27, 221 23, 212 27
+             C193 35, 171 43, 155 50
+             C145 54, 145 58, 155 62
+             C171 69, 193 78, 212 86
+             C221 90, 229 86, 231 77
+             C232 70, 232 64, 232 57
+             Z"
+          fill="#ff4fa0"/>
+    </g>
+
+    <!-- a runner passing through a wall: what is inside the wall shows faintly -->
+    <g transform="translate(511 547) scale(1.45) translate(-248 -246)">
+      <g clip-path="url(#outside-wall)">
+        <use xlink:href="#trail"/>
+      </g>
+      <g clip-path="url(#wall)" opacity="0.4">
+        <use xlink:href="#trail"/>
+      </g>
+    </g>
+  </g>
+</svg>

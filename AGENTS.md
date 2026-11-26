@@ -90,6 +90,7 @@ The mod version itself follows [Semantic Versioning](https://semver.org/); the `
 
 - Language: Java only.
 - Source sets: `src/main` holds only `fabric.mod.json` and the icon. All code and client resources live in `src/client`, and the client game tests live in `src/gametest`.
+- The icon follows hiteffect's and gamemode's: the same hair clip, with a runner passing through a wall in place of their pictogram. The part of the runner inside the wall is faint, and two fainter copies stretched sideways from the wall show its speed. Its source is `art/icon.svg`. `src/main/resources/assets/noclip/icon.png` is rendered from it at 512 x 512 pixels with a transparent background; render it again whenever the SVG changes.
 - Mixins: prefer the MixinExtras injectors bundled with Fabric Loader (for example `@WrapOperation`, `@WrapMethod` and `@ModifyReturnValue`) over `@Redirect` and `@Overwrite`, to stay compatible with other mods and keep porting work small. Gate every change with `(Object) this instanceof LocalPlayer` (or the equivalent parameter check in static methods) and the controller's active rules.
 
 ### Testing

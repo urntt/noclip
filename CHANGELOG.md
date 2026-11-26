@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - Until a configuration mode is chosen, OneConfig mode applies when OneConfig is installed, and custom mode otherwise. Settings from earlier versions are kept.
 - The configuration screen shows the settings two per row and only lets you change them in custom mode. In the other modes it shows the values that apply.
+- New mod icon: a runner passing through a wall.
 
 ## [1.1.0+26.3] - 2026-11-16
 
