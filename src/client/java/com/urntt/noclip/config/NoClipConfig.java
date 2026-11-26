@@ -5,23 +5,22 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParseException;
 import com.urntt.noclip.NoClipClient;
 import com.urntt.noclip.NoClipRules;
+import com.urntt.noclip.compat.OneConfigBridge;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.EnumSet;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.core.Direction;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The mod's settings, persisted as JSON. Every change is written to disk immediately.
+ * The mod's own settings and the configuration mode, persisted as JSON. Every change is written to disk immediately.
  */
-public final class NoClipConfig {
+public final class NoClipConfig implements EditableSettings {
 	private static final Logger LOGGER = LoggerFactory.getLogger(NoClipClient.MOD_ID);
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
@@ -71,7 +70,54 @@ public final class NoClipConfig {
 		return config;
 	}
 
-	/** Returns the current value of a toggleable behavior setting. */
+	/**
+	 * The mode the player chose, which may name OneConfig even while OneConfig is not installed, or {@code null} until
+	 * the player chooses one.
+	 */
+	public @Nullable ConfigMode storedMode() {
+		return this.settings.mode;
+	}
+
+	/**
+	 * The mode that applies. Until the player chooses one, OneConfig manages the mod while it is available. OneConfig
+	 * mode falls back to the custom settings while OneConfig is not available.
+	 */
+	public ConfigMode effectiveMode() {
+		boolean oneConfig = OneConfigBridge.isAvailable();
+		ConfigMode mode = this.settings.mode;
+		if (mode == null) {
+			return oneConfig ? ConfigMode.ONECONFIG : ConfigMode.CUSTOM;
+		}
+		return mode == ConfigMode.ONECONFIG && !oneConfig ? ConfigMode.CUSTOM : mode;
+	}
+
+	public void setMode(final ConfigMode mode) {
+		this.settings.mode = mode;
+		this.save();
+	}
+
+	/** The settings that apply in the {@linkplain #effectiveMode() effective mode}. */
+	public NoClipSettings effective() {
+		return switch (this.effectiveMode()) {
+			case DISABLED -> NoClipValues.DISABLED;
+			case CUSTOM -> this;
+			case ONECONFIG -> OneConfigBridge.settings().orElse(this);
+		};
+	}
+
+	/**
+	 * The settings the toggle key bindings and the reset rules change in the effective mode: none in disabled mode,
+	 * OneConfig's in OneConfig mode, and the mod's own otherwise.
+	 */
+	public Optional<EditableSettings> editable() {
+		return switch (this.effectiveMode()) {
+			case DISABLED -> Optional.empty();
+			case CUSTOM -> Optional.of(this);
+			case ONECONFIG -> Optional.of(OneConfigBridge.settings().orElse(this));
+		};
+	}
+
+	@Override
 	public boolean get(final Toggle toggle) {
 		Settings s = this.settings;
 		return switch (toggle) {
@@ -91,7 +137,7 @@ public final class NoClipConfig {
 		};
 	}
 
-	/** Changes and saves a toggleable behavior setting. */
+	@Override
 	public void set(final Toggle toggle, final boolean value) {
 		Settings s = this.settings;
 		switch (toggle) {
@@ -112,47 +158,22 @@ public final class NoClipConfig {
 		this.save();
 	}
 
-	/** The current state of noclip, as toggled by the main key binding. */
-	public boolean isEnabled() {
-		return this.get(Toggle.ENABLED);
-	}
-
-	public void setEnabled(final boolean enabled) {
-		this.set(Toggle.ENABLED, enabled);
-	}
-
-	/** Whether noclip only applies while the player is flying. */
-	public boolean onlyWhileFlying() {
-		return this.get(Toggle.ONLY_WHILE_FLYING);
-	}
-
-	/**
-	 * Returns what noclip ignores while it is active, before holding jump or sneak adds a direction.
-	 */
+	/** Cached, because the collision code asks for the rules several times per tick. */
+	@Override
 	public NoClipRules rules() {
 		NoClipRules rules = this.rules;
 		if (rules == null) {
-			Set<CollisionType> types = EnumSet.noneOf(CollisionType.class);
-			for (CollisionType type : CollisionType.values()) {
-				if (this.get(Toggle.forType(type))) {
-					types.add(type);
-				}
-			}
-			Set<Direction.Axis> axes = EnumSet.noneOf(Direction.Axis.class);
-			for (Direction.Axis axis : Direction.Axis.values()) {
-				if (this.get(Toggle.forAxis(axis))) {
-					axes.add(axis);
-				}
-			}
-			rules = new NoClipRules(types, NoClipRules.bothWays(axes), this.get(Toggle.CLEAR_VIEW));
+			rules = EditableSettings.super.rules();
 			this.rules = rules;
 		}
 		return rules;
 	}
 
-	/** The state a reset restores in singleplayer worlds. */
-	public boolean singleplayerDefault() {
-		return this.settings.singleplayerDefault;
+	@Override
+	public SceneRules sceneRules() {
+		Settings s = this.settings;
+		return new SceneRules(s.singleplayerDefault, s.multiplayerDefault, s.resetOnWorldExit, s.resetOnGameExit,
+				s.multiplayerMode, s.servers);
 	}
 
 	public void setSingleplayerDefault(final boolean singleplayerDefault) {
@@ -160,29 +181,14 @@ public final class NoClipConfig {
 		this.save();
 	}
 
-	/** The state a reset restores on multiplayer servers that the multiplayer mode allows. */
-	public boolean multiplayerDefault() {
-		return this.settings.multiplayerDefault;
-	}
-
 	public void setMultiplayerDefault(final boolean multiplayerDefault) {
 		this.settings.multiplayerDefault = multiplayerDefault;
 		this.save();
 	}
 
-	/** Whether every world starts from its default state. */
-	public boolean resetOnWorldExit() {
-		return this.settings.resetOnWorldExit;
-	}
-
 	public void setResetOnWorldExit(final boolean resetOnWorldExit) {
 		this.settings.resetOnWorldExit = resetOnWorldExit;
 		this.save();
-	}
-
-	/** Whether the first world after starting the game starts from its default state. */
-	public boolean resetOnGameExit() {
-		return this.settings.resetOnGameExit;
 	}
 
 	public void setResetOnGameExit(final boolean resetOnGameExit) {
@@ -224,20 +230,23 @@ public final class NoClipConfig {
 	 * The serialized form. Field initializers are the defaults, which also apply to keys missing from the file.
 	 */
 	private static final class Settings {
-		private boolean enabled = false;
+		/** The mode the player chose, or {@code null} until then; Gson leaves it out of the file while it is. */
+		private @Nullable ConfigMode mode;
+		private boolean enabled = NoClipValues.DEFAULTS.get(Toggle.ENABLED);
 		private Axes axes = new Axes();
 		private Collisions collisions = new Collisions();
-		private boolean onlyWhileFlying = false;
-		private boolean clearView = true;
-		private boolean singleplayerDefault = false;
-		private boolean multiplayerDefault = false;
-		private boolean resetOnWorldExit = false;
-		private boolean resetOnGameExit = false;
-		private MultiplayerMode multiplayerMode = MultiplayerMode.DISABLED;
-		private List<String> servers = new ArrayList<>();
+		private boolean onlyWhileFlying = NoClipValues.DEFAULTS.get(Toggle.ONLY_WHILE_FLYING);
+		private boolean clearView = NoClipValues.DEFAULTS.get(Toggle.CLEAR_VIEW);
+		private boolean singleplayerDefault = SceneRules.DEFAULTS.singleplayerDefault();
+		private boolean multiplayerDefault = SceneRules.DEFAULTS.multiplayerDefault();
+		private boolean resetOnWorldExit = SceneRules.DEFAULTS.resetOnWorldExit();
+		private boolean resetOnGameExit = SceneRules.DEFAULTS.resetOnGameExit();
+		private MultiplayerMode multiplayerMode = SceneRules.DEFAULTS.multiplayerMode();
+		private List<String> servers = new ArrayList<>(SceneRules.DEFAULTS.servers());
 
 		/**
-		 * Replaces values Gson could not map (unknown mode names, missing objects) and tidies the server list.
+		 * Replaces values Gson could not map (unknown multiplayer mode names, missing objects) and tidies the server
+		 * list. An unknown or missing configuration mode stays {@code null}, which counts as no choice.
 		 */
 		private void normalize() {
 			if (this.axes == null) {
@@ -247,7 +256,7 @@ public final class NoClipConfig {
 				this.collisions = new Collisions();
 			}
 			if (this.multiplayerMode == null) {
-				this.multiplayerMode = MultiplayerMode.DISABLED;
+				this.multiplayerMode = SceneRules.DEFAULTS.multiplayerMode();
 			}
 			List<String> entries = new ArrayList<>();
 			if (this.servers != null) {
@@ -266,19 +275,19 @@ public final class NoClipConfig {
 	 * them for upward or downward movement.
 	 */
 	private static final class Axes {
-		private boolean x = true;
-		private boolean y = false;
-		private boolean z = true;
-		private boolean jumpUp = false;
-		private boolean sneakDown = false;
+		private boolean x = NoClipValues.DEFAULTS.get(Toggle.AXIS_X);
+		private boolean y = NoClipValues.DEFAULTS.get(Toggle.AXIS_Y);
+		private boolean z = NoClipValues.DEFAULTS.get(Toggle.AXIS_Z);
+		private boolean jumpUp = NoClipValues.DEFAULTS.get(Toggle.JUMP_UP);
+		private boolean sneakDown = NoClipValues.DEFAULTS.get(Toggle.SNEAK_DOWN);
 	}
 
 	/** The collision types noclip passes through. */
 	private static final class Collisions {
-		private boolean blocks = true;
-		private boolean fluids = true;
-		private boolean worldBorder = true;
-		private boolean slowingBlocks = true;
-		private boolean entities = true;
+		private boolean blocks = NoClipValues.DEFAULTS.get(Toggle.BLOCKS);
+		private boolean fluids = NoClipValues.DEFAULTS.get(Toggle.FLUIDS);
+		private boolean worldBorder = NoClipValues.DEFAULTS.get(Toggle.WORLD_BORDER);
+		private boolean slowingBlocks = NoClipValues.DEFAULTS.get(Toggle.SLOWING_BLOCKS);
+		private boolean entities = NoClipValues.DEFAULTS.get(Toggle.ENTITIES);
 	}
 }

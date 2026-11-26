@@ -22,6 +22,8 @@ public final class NoClipClient implements ClientModInitializer {
 
 	/** Action bar message shown when the main toggle key is pressed on a server the multiplayer rules rule out. */
 	public static final Component BLOCKED_MESSAGE = Component.translatable("message.noclip.blocked");
+	/** Action bar message shown when a toggle key is pressed while disabled mode is selected. */
+	public static final Component UNAVAILABLE_MESSAGE = Component.translatable("message.noclip.unavailable");
 
 	private static NoClipConfig config;
 	private static NoClipController controller;
@@ -29,7 +31,7 @@ public final class NoClipClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		config = NoClipConfig.load(NoClipConfig.defaultPath());
-		controller = new NoClipController(config);
+		controller = new NoClipController(config::effective, config::editable);
 
 		KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "general"));
 		Map<Toggle, KeyMapping> toggleKeys = new EnumMap<>(Toggle.class);
@@ -47,7 +49,7 @@ public final class NoClipClient implements ClientModInitializer {
 				}
 			});
 			while (openSettingsKey.consumeClick()) {
-				client.gui.setScreen(new NoClipConfigScreen(client.gui.screen()));
+				NoClipConfigScreen.open(client);
 			}
 		});
 
@@ -65,23 +67,15 @@ public final class NoClipClient implements ClientModInitializer {
 	}
 
 	/**
-	 * Flips {@code toggle} and shows the new state on the action bar. The main toggle goes through the controller,
-	 * which leaves it unchanged on a server the multiplayer rules rule out.
+	 * Flips {@code toggle} in the settings of the configuration mode and shows the outcome on the action bar.
 	 */
 	private static void toggle(final Minecraft client, final Toggle toggle) {
-		Component message;
-		if (toggle == Toggle.ENABLED) {
-			message = switch (controller.toggle()) {
-				case ENABLED -> CommonComponents.optionStatus(toggle.caption(), true);
-				case DISABLED -> CommonComponents.optionStatus(toggle.caption(), false);
-				case BLOCKED -> BLOCKED_MESSAGE;
-			};
-		} else {
-			boolean value = !config.get(toggle);
-			config.set(toggle, value);
-			message = CommonComponents.optionStatus(toggle.caption(), value);
-		}
-
+		Component message = switch (controller.toggle(toggle)) {
+			case ON -> CommonComponents.optionStatus(toggle.caption(), true);
+			case OFF -> CommonComponents.optionStatus(toggle.caption(), false);
+			case BLOCKED -> BLOCKED_MESSAGE;
+			case UNAVAILABLE -> UNAVAILABLE_MESSAGE;
+		};
 		if (client.player != null) {
 			client.player.sendOverlayMessage(message);
 		}

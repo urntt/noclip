@@ -6,7 +6,7 @@ Only your own player is affected. Other players, mobs, and vehicles keep their c
 
 ## Multiplayer warning
 
-**This mod is disabled in multiplayer by default. To use it in multiplayer, change the settings on its configuration screen.**
+**This mod is disabled in multiplayer by default.** In custom mode, it stays off on every server until you allow servers in the multiplayer settings on its configuration screen. In OneConfig mode, noclip is off until you turn it on in OneConfig, and then it applies on every server you join.
 
 This mod changes player movement. Servers that run anti-cheat systems may detect it, which can get your movement set back, get you kicked, or get you banned, and using it may break a server's rules. This mod does not try to bypass any anti-cheat. Check each server's rules before enabling it there, and use it in multiplayer at your own risk.
 
@@ -34,19 +34,35 @@ nomovementcheck only lifts the movement checks. Everything else stays vanilla: f
 
 [Mod Menu](https://modrinth.com/mod/modmenu) is optional. When installed, it opens the mod's configuration screen from its mod list.
 
+[OneConfig](https://modrinth.com/mod/oneconfig) is optional. When installed, it can manage the mod's settings; see [Configuration modes](#configuration-modes).
+
 ## Usage
 
-Noclip is off until you turn it on, and it stays off on multiplayer servers until you allow them in the multiplayer settings.
+Noclip is off until you turn it on. In custom mode, it stays off on multiplayer servers until you allow them in the multiplayer settings.
 
 The mod adds these key bindings in **Options → Controls → Key Binds**, all unbound by default:
 
 - **Toggle Noclip** turns noclip on or off and shows the new state on the action bar. On a server that the multiplayer settings rule out, it only shows that noclip is disabled there.
 - One toggle key for every axis, collision type, and option below, for example **Toggle Pass Through Blocks**. Each shows the new state on the action bar.
-- **Open noclip Settings** opens the configuration screen. With Mod Menu installed, you can also open it from the mod list.
+- **Open noclip Settings** opens the configuration screen. With Mod Menu installed, you can also open it from the mod list, and with OneConfig installed, from the **Original menu** link on the mod's OneConfig page.
+
+The toggle keys change the settings of the current configuration mode: the mod's own settings in custom mode, and OneConfig's in OneConfig mode. In disabled mode they change nothing and only show that noclip is disabled in its settings.
+
+### Configuration modes
+
+The first button on the configuration screen chooses where the settings come from:
+
+| Mode | Meaning |
+| --- | --- |
+| Disabled | Noclip is never active, and the toggle keys change nothing. |
+| Custom | The settings on the mod's own configuration screen apply. |
+| OneConfig | The settings in OneConfig apply: the toggle on the mod's card, which is off by default, turns noclip on and off, and the axes, collision types, and options below have the same defaults as in custom mode. OneConfig has no defaults, reset rules, or multiplayer settings: once you turn noclip on there, it applies in singleplayer and on every server you join. To use different settings on some servers, use OneConfig profiles. The mod's own screen then shows the values OneConfig applies without letting you change them, and its **Open in OneConfig** button opens the mod's OneConfig page. This mode is only offered when OneConfig is installed. |
+
+Until you choose a mode, OneConfig mode applies when OneConfig is installed, and custom mode otherwise. Your choice is saved, and if you choose OneConfig mode and later remove OneConfig, the custom settings apply until you install it again or choose another mode.
 
 ### Settings
 
-All settings are saved to `config/noclip.json` as soon as you change them.
+The mod's own settings are saved to `config/noclip.json` as soon as you change them. In OneConfig mode, OneConfig saves its settings itself.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -70,6 +86,8 @@ All settings are saved to `config/noclip.json` as soon as you change them.
 | Multiplayer mode | Disabled | **Disabled**: never active on servers. **Whitelist**: active only on servers in the server list. **Blacklist**: active on all servers except those in the server list. |
 | Server List | Empty | The addresses the whitelist and blacklist modes use. |
 
+The last six settings, from Singleplayer Default to Server List, only exist in custom mode.
+
 The axes, and passing up or down with the jump and sneak keys, only apply to blocks, the world border, and entities. Fluids and slowing blocks are passed through as a whole. The jump and sneak keys are the ones set in the game's controls.
 
 The multiplayer mode is a hard limit: on a server it rules out, noclip stays off whatever the current state is. Joining another player's LAN world or a Realm counts as multiplayer.
@@ -92,7 +110,7 @@ Build the mod:
 
 The jar is written to `build/libs/`.
 
-Run the client game tests, which start Minecraft and check every collision type, the axes and options, the key bindings, the settings screens, the reset rules, the multiplayer modes on a local dedicated server, and the saved configuration:
+Run the client game tests, which start Minecraft and check every collision type, the axes and options, the key bindings, the configuration modes and settings screens, the reset rules, the multiplayer modes on a local dedicated server, and the saved configuration:
 
 ```bash
 ./gradlew runClientGameTest
@@ -102,6 +120,12 @@ Run them again with Lithium loaded in the development client, the version set by
 
 ```bash
 ./gradlew runClientGameTest -PwithLithium
+```
+
+Run them again with OneConfig and its dependencies (Fabric Language Kotlin and PolyCompose) loaded in the development client, which also checks OneConfig mode. Their Modrinth version ids are set next to `oneconfig_version` in `gradle.properties`:
+
+```bash
+./gradlew runClientGameTest -PoneConfigRuntime=true
 ```
 
 The game tests need a display. On a headless Linux machine, run them under Xvfb. Xvfb offers no sRGB-capable OpenGL visuals, so install Mesa's Vulkan driver (`mesa-vulkan-drivers` on Ubuntu) for the game to fall back to:

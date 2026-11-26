@@ -20,13 +20,11 @@ import static com.urntt.noclip.gametest.GameTestSupport.unbindKey;
 import static com.urntt.noclip.gametest.GameTestSupport.walkForward;
 
 import com.urntt.noclip.NoClipClient;
-import com.urntt.noclip.config.MultiplayerMode;
+import com.urntt.noclip.compat.OneConfigBridge;
+import com.urntt.noclip.config.ConfigMode;
 import com.urntt.noclip.config.NoClipConfigScreen;
-import com.urntt.noclip.config.ServerListScreen;
 import com.urntt.noclip.config.Toggle;
-import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.CompletableFuture;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
@@ -61,12 +59,11 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 	private static final int BUBBLE_COLUMN_HEIGHT = 4;
 	/** Height of soul sand's collision shape. */
 	private static final double SOUL_SAND_HEIGHT = 14.0 / 16.0;
-	/** Screenshots it takes to show the whole settings screen, and how far to scroll between them. */
-	private static final int SETTINGS_PAGES = 5;
-	private static final int SETTINGS_SCROLL_PER_PAGE = 10;
 
 	@Override
 	public void runTest(final ClientGameTestContext context) {
+		// The collision checks change the mod's own settings, which apply in custom mode.
+		configure(context, config -> config.setMode(ConfigMode.CUSTOM));
 		check(!get(context, Toggle.ENABLED), "noclip should be off by default");
 
 		try (TestSingleplayerContext singleplayer = context.worldBuilder().create()) {
@@ -82,7 +79,7 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 			checkKeys(context, server, origin);
 		}
 
-		configure(context, config -> config.setEnabled(false));
+		configure(context, config -> config.set(Toggle.ENABLED, false));
 	}
 
 	/**
@@ -398,7 +395,8 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 	}
 
 	/**
-	 * The main toggle key, one collision type toggle key, the settings key, and screenshots of the settings screens.
+	 * The main toggle key, one collision type toggle key, and the settings key. {@code NoClipConfigScreenGameTest}
+	 * covers the settings screen itself.
 	 */
 	private static void checkKeys(final ClientGameTestContext context, final TestServerContext server, final BlockPos area) {
 		teleport(context, server, center(area));
@@ -410,7 +408,7 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 		context.getInput().pressKey(enabledKey);
 		context.waitTick();
 		check(get(context, Toggle.ENABLED) == !enabled, "the toggle key should flip noclip");
-		check(loadSavedConfig().isEnabled() == !enabled, "the toggled state should be saved to the config file");
+		check(loadSavedConfig().get(Toggle.ENABLED) == !enabled, "the toggled state should be saved to the config file");
 		context.takeScreenshot("noclip-toggled");
 		context.getInput().pressKey(enabledKey);
 		context.waitTick();
@@ -429,22 +427,42 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 		context.waitForScreen(NoClipConfigScreen.class);
 		context.setScreen(() -> null);
 
-		configure(context, config -> {
-			config.setMultiplayerMode(MultiplayerMode.WHITELIST);
-			config.setServers(List.of("mc.example.com", "192.168.1.5"));
-		});
-		takeSettingsScreenshots(context, "en_us");
-		switchLanguage(context, "zh_cn");
-		takeSettingsScreenshots(context, "zh_cn");
-		switchLanguage(context, "en_us");
-		configure(context, config -> {
-			config.setMultiplayerMode(MultiplayerMode.DISABLED);
-			config.setServers(List.of());
-		});
+		checkKeysInOtherModes(context, enabledKey, blocksKey);
 
 		unbindKey(context, enabledKey);
 		unbindKey(context, blocksKey);
 		unbindKey(context, openSettingsKey);
+	}
+
+	/**
+	 * In disabled mode the toggle keys change nothing and say so. In OneConfig mode, when OneConfig is installed,
+	 * they change OneConfig's settings and leave the custom ones alone.
+	 */
+	private static void checkKeysInOtherModes(final ClientGameTestContext context, final KeyMapping enabledKey,
+			final KeyMapping blocksKey) {
+		boolean enabled = get(context, Toggle.ENABLED);
+		configure(context, config -> config.setMode(ConfigMode.DISABLED));
+		context.getInput().pressKey(enabledKey);
+		context.waitTick();
+		check(get(context, Toggle.ENABLED) == enabled, "the toggle key should change nothing in disabled mode");
+		context.takeScreenshot("noclip-toggle-unavailable");
+		configure(context, config -> config.setMode(ConfigMode.CUSTOM));
+
+		if (!OneConfigBridge.isAvailable()) {
+			LOGGER.info("OneConfig is not installed, so the toggle keys in OneConfig mode are not checked");
+			return;
+		}
+		configure(context, config -> config.setMode(ConfigMode.ONECONFIG));
+		boolean oneConfigBlocks = context.computeOnClient(client -> OneConfigBridge.settings().orElseThrow().get(Toggle.BLOCKS));
+		context.getInput().pressKey(blocksKey);
+		context.waitTick();
+		boolean toggled = context.computeOnClient(client -> OneConfigBridge.settings().orElseThrow().get(Toggle.BLOCKS));
+		LOGGER.info("In OneConfig mode, the blocks key switched OneConfig's setting from {} to {}", oneConfigBlocks, toggled);
+		check(toggled == !oneConfigBlocks, "in OneConfig mode the blocks key should change OneConfig's setting");
+		check(get(context, Toggle.BLOCKS), "in OneConfig mode the blocks key should leave the custom setting alone");
+		context.getInput().pressKey(blocksKey);
+		context.waitTick();
+		configure(context, config -> config.setMode(ConfigMode.CUSTOM));
 	}
 
 	/**
@@ -470,39 +488,5 @@ public final class NoClipClientGameTest implements FabricClientGameTest {
 		context.waitTicks(ticks);
 		Vec3 after = context.computeOnClient(client -> client.player.position());
 		return after.subtract(before).horizontalDistance();
-	}
-
-	/**
-	 * Takes screenshots of the settings screen from top to bottom, and of the server list screen.
-	 */
-	private static void takeSettingsScreenshots(final ClientGameTestContext context, final String language) {
-		context.setScreen(() -> new NoClipConfigScreen(null));
-		for (int page = 1; page <= SETTINGS_PAGES; page++) {
-			if (page > 1) {
-				// The list only scrolls under the cursor.
-				context.getInput().setCursorPos(context.computeOnClient(client -> client.getWindow().getWidth() / 2.0),
-						context.computeOnClient(client -> client.getWindow().getHeight() / 2.0));
-				context.getInput().scroll(page == SETTINGS_PAGES ? -100 : -SETTINGS_SCROLL_PER_PAGE);
-			}
-			// Keep the cursor away from the widgets so no tooltip covers them.
-			context.getInput().setCursorPos(0, 0);
-			context.waitTick();
-			context.takeScreenshot("noclip-config-screen-" + page + "-" + language);
-		}
-
-		context.setScreen(() -> new ServerListScreen(new NoClipConfigScreen(null), NoClipClient.config()));
-		context.getInput().setCursorPos(0, 0);
-		context.waitTick();
-		context.takeScreenshot("noclip-server-list-" + language);
-		context.setScreen(() -> null);
-	}
-
-	private static void switchLanguage(final ClientGameTestContext context, final String language) {
-		CompletableFuture<Void> reload = context.computeOnClient(client -> {
-			client.getLanguageManager().setSelected(language);
-			client.options.languageCode = language;
-			return client.reloadResourcePacks();
-		});
-		context.waitFor(client -> reload.isDone() && client.gui.overlay() == null);
 	}
 }

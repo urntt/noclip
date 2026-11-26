@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Add a configuration mode as the first button of the configuration screen. **Disabled** turns noclip off and makes the toggle keys change nothing, **Custom** uses the mod's own settings, and **OneConfig** uses the settings in OneConfig.
+- Add optional [OneConfig](https://modrinth.com/mod/oneconfig) support. OneConfig manages the mod's toggle on its card, which is off by default, and the axes, collision types, and options. It has no defaults, reset rules, or multiplayer settings: once noclip is turned on there, it applies in singleplayer and on every server, and OneConfig profiles take the place of server lists. In OneConfig mode, the toggle keys change OneConfig's settings.
+
+### Changed
+
+- Until a configuration mode is chosen, OneConfig mode applies when OneConfig is installed, and custom mode otherwise. Settings from earlier versions are kept.
+- The configuration screen shows the settings two per row and only lets you change them in custom mode. In the other modes it shows the values that apply.
+
 ## [1.1.0+26.3] - 2026-11-16
 
 ### Added

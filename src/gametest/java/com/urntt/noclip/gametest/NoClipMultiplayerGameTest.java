@@ -15,6 +15,7 @@ import static com.urntt.noclip.gametest.GameTestSupport.unbindKey;
 
 import com.urntt.noclip.NoClipClient;
 import com.urntt.noclip.Scene;
+import com.urntt.noclip.config.ConfigMode;
 import com.urntt.noclip.config.MultiplayerMode;
 import com.urntt.noclip.config.Toggle;
 import java.util.List;
@@ -38,7 +39,9 @@ public final class NoClipMultiplayerGameTest implements FabricClientGameTest {
 	@Override
 	public void runTest(final ClientGameTestContext context) {
 		configure(context, config -> {
-			config.setEnabled(true);
+			// The multiplayer rules only exist in custom mode.
+			config.setMode(ConfigMode.CUSTOM);
+			config.set(Toggle.ENABLED, true);
 			config.setResetOnWorldExit(false);
 			config.setMultiplayerMode(MultiplayerMode.DISABLED);
 			config.setServers(List.of());
@@ -76,7 +79,7 @@ public final class NoClipMultiplayerGameTest implements FabricClientGameTest {
 		}
 
 		configure(context, config -> {
-			config.setEnabled(false);
+			config.set(Toggle.ENABLED, false);
 			config.setMultiplayerMode(MultiplayerMode.DISABLED);
 			config.setServers(List.of());
 		});

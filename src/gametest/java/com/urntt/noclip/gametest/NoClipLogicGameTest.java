@@ -6,9 +6,14 @@ import com.urntt.noclip.NoClipController;
 import com.urntt.noclip.NoClipRules;
 import com.urntt.noclip.Scene;
 import com.urntt.noclip.ServerAddresses;
+import com.urntt.noclip.compat.OneConfigBridge;
 import com.urntt.noclip.config.CollisionType;
+import com.urntt.noclip.config.ConfigMode;
+import com.urntt.noclip.config.EditableSettings;
 import com.urntt.noclip.config.MultiplayerMode;
 import com.urntt.noclip.config.NoClipConfig;
+import com.urntt.noclip.config.NoClipValues;
+import com.urntt.noclip.config.SceneRules;
 import com.urntt.noclip.config.Toggle;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -16,15 +21,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.minecraft.core.Direction;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Checks the address matching, the configuration, the rules, and the controller without a world. Each check uses its
  * own configuration file, so the game's configuration is left alone. Restarting the game is not possible in a game
- * test, so this is also where "reset on game exit" is covered.
+ * test, so this is also where "reset on game exit" is covered. Most controllers here read the custom settings directly,
+ * whatever the configuration mode, because a new file is in OneConfig mode while OneConfig is installed.
  */
 @SuppressWarnings("UnstableApiUsage")
 public final class NoClipLogicGameTest implements FabricClientGameTest {
@@ -43,6 +51,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		checkOnlyWhileFlying(directory);
 		checkMultiplayerRules(directory);
 		checkResetRules(directory);
+		checkModes(directory);
+		checkWithoutSceneRules();
 		GameTestSupport.LOGGER.info("Logic checks passed");
 	}
 
@@ -76,7 +86,7 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 
 	private static void checkDefaults(final Path directory) {
 		NoClipConfig config = NoClipConfig.load(directory.resolve("defaults.json"));
-		check(!config.isEnabled(), "noclip should be off by default");
+		check(!config.get(Toggle.ENABLED), "noclip should be off by default");
 		check(config.get(Toggle.AXIS_X) && !config.get(Toggle.AXIS_Y) && config.get(Toggle.AXIS_Z),
 				"only the X and Z axes should be enabled by default");
 		check(!config.get(Toggle.JUMP_UP) && !config.get(Toggle.SNEAK_DOWN),
@@ -84,14 +94,17 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		for (CollisionType type : CollisionType.values()) {
 			check(config.get(Toggle.forType(type)), type + " should be passed through by default");
 		}
-		check(!config.onlyWhileFlying(), "only while flying should be off by default");
+		check(!config.get(Toggle.ONLY_WHILE_FLYING), "only while flying should be off by default");
 		check(config.get(Toggle.CLEAR_VIEW), "clear view inside blocks should be on by default");
-		check(!config.singleplayerDefault(), "the singleplayer default should be off");
-		check(!config.multiplayerDefault(), "the server default should be off");
-		check(!config.resetOnWorldExit(), "reset on world exit should be off by default");
-		check(!config.resetOnGameExit(), "reset on game exit should be off by default");
-		check(config.multiplayerMode() == MultiplayerMode.DISABLED, "multiplayer should be disabled by default");
-		check(config.servers().isEmpty(), "the server list should be empty by default");
+		SceneRules scene = config.sceneRules();
+		check(!scene.singleplayerDefault(), "the singleplayer default should be off");
+		check(!scene.multiplayerDefault(), "the server default should be off");
+		check(!scene.resetOnWorldExit(), "reset on world exit should be off by default");
+		check(!scene.resetOnGameExit(), "reset on game exit should be off by default");
+		check(scene.multiplayerMode() == MultiplayerMode.DISABLED, "multiplayer should be disabled by default");
+		check(scene.servers().isEmpty(), "the server list should be empty by default");
+		check(NoClipValues.copyOf(config).equals(NoClipValues.DEFAULTS),
+				"a new configuration should hold the defaults, was " + NoClipValues.copyOf(config));
 		check(Files.exists(directory.resolve("defaults.json")), "a missing config file should be created");
 
 		NoClipRules rules = config.rules();
@@ -127,7 +140,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 				+ "\"servers\": [\" a.example.com \", \"\"]}");
 
 		NoClipConfig config = NoClipConfig.load(path);
-		check(config.isEnabled(), "existing settings should be kept");
+		check(config.storedMode() == null, "a file without a mode should count as no choice");
+		check(config.get(Toggle.ENABLED), "existing settings should be kept");
 		check(config.get(Toggle.AXIS_X) && config.get(Toggle.AXIS_Y) && config.get(Toggle.AXIS_Z),
 				"missing axes should get their defaults next to the saved one");
 		check(!config.get(Toggle.JUMP_UP) && !config.get(Toggle.SNEAK_DOWN),
@@ -143,7 +157,7 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 
 		write(path, "not json {");
 		NoClipConfig broken = NoClipConfig.load(path);
-		check(!broken.isEnabled(), "an unreadable file should fall back to the defaults");
+		check(!broken.get(Toggle.ENABLED), "an unreadable file should fall back to the defaults");
 		check(read(path).equals("not json {"), "an unreadable file should be left untouched");
 	}
 
@@ -178,11 +192,11 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 
 	private static void checkOnlyWhileFlying(final Path directory) {
 		NoClipConfig config = NoClipConfig.load(directory.resolve("flying.json"));
-		NoClipController controller = new NoClipController(config);
+		NoClipController controller = customController(config);
 		controller.onJoin(Scene.SINGLEPLAYER);
 		check(!controller.isActive(false) && !controller.isActive(true), "noclip should be off by default");
 
-		config.setEnabled(true);
+		config.set(Toggle.ENABLED, true);
 		check(controller.isActive(false) && controller.isActive(true), "noclip should be active walking and flying");
 		config.set(Toggle.ONLY_WHILE_FLYING, true);
 		check(!controller.isActive(false), "only while flying should rule out walking");
@@ -191,8 +205,8 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 
 	private static void checkMultiplayerRules(final Path directory) {
 		NoClipConfig config = NoClipConfig.load(directory.resolve("rules.json"));
-		config.setEnabled(true);
-		NoClipController controller = new NoClipController(config);
+		config.set(Toggle.ENABLED, true);
+		NoClipController controller = customController(config);
 
 		check(!controller.isActive(false), "nothing should be active outside a world");
 		controller.onJoin(Scene.SINGLEPLAYER);
@@ -200,14 +214,14 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 
 		controller.onJoin(SERVER_A);
 		check(!controller.isAllowed(), "the disabled mode should rule out every server");
-		check(controller.toggle() == NoClipController.ToggleResult.BLOCKED, "toggling should be blocked");
-		check(config.isEnabled(), "a blocked toggle should leave the state unchanged");
+		check(controller.toggle(Toggle.ENABLED) == NoClipController.ToggleResult.BLOCKED, "toggling should be blocked");
+		check(config.get(Toggle.ENABLED), "a blocked toggle should leave the state unchanged");
 
 		config.setServers(List.of("a.example.com"));
 		config.setMultiplayerMode(MultiplayerMode.WHITELIST);
 		check(controller.isActive(false), "a whitelisted server should be allowed");
-		check(controller.toggle() == NoClipController.ToggleResult.DISABLED, "toggling should work when allowed");
-		check(controller.toggle() == NoClipController.ToggleResult.ENABLED, "toggling should work when allowed");
+		check(controller.toggle(Toggle.ENABLED) == NoClipController.ToggleResult.OFF, "toggling should work when allowed");
+		check(controller.toggle(Toggle.ENABLED) == NoClipController.ToggleResult.ON, "toggling should work when allowed");
 		controller.onJoin(SERVER_B);
 		check(!controller.isAllowed(), "a server missing from the whitelist should be ruled out");
 		controller.onJoin(UNKNOWN_SERVER);
@@ -224,35 +238,143 @@ public final class NoClipLogicGameTest implements FabricClientGameTest {
 		check(!controller.isActive(false), "nothing should be active after disconnecting");
 	}
 
+	/**
+	 * Checks the configuration modes: until the player chooses one, OneConfig mode while OneConfig is installed and
+	 * custom mode otherwise; OneConfig mode only while OneConfig is installed; and disabled mode turning noclip off
+	 * and ignoring the toggle keys and reset rules.
+	 */
+	private static void checkModes(final Path directory) {
+		ConfigMode unchosen = OneConfigBridge.isAvailable() ? ConfigMode.ONECONFIG : ConfigMode.CUSTOM;
+		Path path = directory.resolve("modes.json");
+		NoClipConfig config = NoClipConfig.load(path);
+		check(config.storedMode() == null, "no mode should be chosen by default");
+		check(!read(path).contains("\"mode\""), "a mode that was not chosen should be left out of the file");
+		check(config.effectiveMode() == unchosen, "without a choice, the mode should be " + unchosen + ", was "
+				+ config.effectiveMode());
+
+		Path older = directory.resolve("modes-1.1.0.json");
+		write(older, "{\"enabled\": true}");
+		NoClipConfig upgraded = NoClipConfig.load(older);
+		check(upgraded.storedMode() == null && upgraded.get(Toggle.ENABLED),
+				"a 1.1.0 file should load without a chosen mode and keep its settings");
+
+		config.setMode(ConfigMode.CUSTOM);
+		check(read(path).contains("\"mode\": \"custom\""), "a chosen mode should be saved");
+		check(config.effectiveMode() == ConfigMode.CUSTOM, "a chosen custom mode should apply");
+
+		config.setMode(ConfigMode.ONECONFIG);
+		NoClipConfig reloaded = NoClipConfig.load(path);
+		check(reloaded.storedMode() == ConfigMode.ONECONFIG, "OneConfig mode should be saved");
+		check(reloaded.effectiveMode() == unchosen, "OneConfig mode should apply only while OneConfig is installed, "
+				+ "expected " + unchosen + ", was " + reloaded.effectiveMode());
+
+		config.set(Toggle.ENABLED, true);
+		config.setResetOnWorldExit(true);
+		config.setMode(ConfigMode.DISABLED);
+		NoClipController controller = new NoClipController(config::effective, config::editable);
+		controller.onJoin(Scene.SINGLEPLAYER);
+		check(config.get(Toggle.ENABLED), "disabled mode should not apply the reset rules");
+		check(!controller.isActive(true), "disabled mode should keep noclip off");
+		check(NoClipValues.copyOf(config.effective()).equals(NoClipValues.DISABLED),
+				"disabled mode should apply the disabled values");
+		check(config.editable().isEmpty(), "disabled mode should offer nothing to edit");
+		for (Toggle toggle : Toggle.values()) {
+			boolean before = config.get(toggle);
+			check(controller.toggle(toggle) == NoClipController.ToggleResult.UNAVAILABLE,
+					"toggling " + toggle + " should be unavailable in disabled mode");
+			check(config.get(toggle) == before, "toggling " + toggle + " in disabled mode should change nothing");
+		}
+
+		config.setMode(ConfigMode.CUSTOM);
+		check(controller.isActive(false), "custom mode should apply the custom settings again");
+	}
+
+	/**
+	 * Settings without scene rules, as OneConfig's are, start with noclip off. Once it is on, every scene allows it,
+	 * and joining a world resets nothing.
+	 */
+	private static void checkWithoutSceneRules() {
+		check(NoClipValues.ONECONFIG_DEFAULTS.sceneRules() == null, "OneConfig's settings should have no scene rules");
+		SettingsWithoutSceneRules settings = new SettingsWithoutSceneRules();
+		check(!settings.get(Toggle.ENABLED), "OneConfig's toggle should be off by default");
+		NoClipController controller = new NoClipController(() -> settings, () -> Optional.of(settings));
+		controller.onJoin(SERVER_A);
+		check(controller.isAllowed() && !controller.isActive(false),
+				"without scene rules, a server should be allowed while noclip stays off");
+		check(controller.toggle(Toggle.ENABLED) == NoClipController.ToggleResult.ON,
+				"the main toggle should work on any server without scene rules");
+		controller.onDisconnect();
+
+		for (Scene scene : List.of(Scene.SINGLEPLAYER, SERVER_A, SERVER_B, UNKNOWN_SERVER)) {
+			controller.onJoin(scene);
+			check(controller.isActive(false), "without scene rules, noclip should be active in " + scene);
+			check(settings.get(Toggle.ENABLED), "without scene rules, joining " + scene + " should reset nothing");
+			controller.onDisconnect();
+		}
+	}
+
+	/** A controller that reads the custom settings of {@code config}, whatever its mode. */
+	private static NoClipController customController(final NoClipConfig config) {
+		return new NoClipController(() -> config, () -> Optional.of(config));
+	}
+
+	/** Editable settings without scene rules, standing in for OneConfig's, which only exist while it is installed. */
+	private static final class SettingsWithoutSceneRules implements EditableSettings {
+		private final Set<Toggle> enabled = EnumSet.noneOf(Toggle.class);
+
+		SettingsWithoutSceneRules() {
+			this.enabled.addAll(NoClipValues.ONECONFIG_DEFAULTS.enabled());
+		}
+
+		@Override
+		public boolean get(final Toggle toggle) {
+			return this.enabled.contains(toggle);
+		}
+
+		@Override
+		public void set(final Toggle toggle, final boolean value) {
+			if (value) {
+				this.enabled.add(toggle);
+			} else {
+				this.enabled.remove(toggle);
+			}
+		}
+
+		@Override
+		public @Nullable SceneRules sceneRules() {
+			return null;
+		}
+	}
+
 	private static void checkResetRules(final Path directory) {
 		NoClipConfig config = NoClipConfig.load(directory.resolve("reset.json"));
 		config.setResetOnGameExit(true);
 		config.setSingleplayerDefault(true);
-		config.setEnabled(false);
+		config.set(Toggle.ENABLED, false);
 
 		// A fresh controller stands for a game that has just started.
-		NoClipController controller = new NoClipController(config);
+		NoClipController controller = customController(config);
 		controller.onJoin(SERVER_A);
-		check(!config.isEnabled(), "a ruled-out server should not apply the game exit reset");
+		check(!config.get(Toggle.ENABLED), "a ruled-out server should not apply the game exit reset");
 		controller.onDisconnect();
 		controller.onJoin(Scene.SINGLEPLAYER);
-		check(config.isEnabled(), "the first allowed world after starting should restore the default");
+		check(config.get(Toggle.ENABLED), "the first allowed world after starting should restore the default");
 		controller.onDisconnect();
-		config.setEnabled(false);
+		config.set(Toggle.ENABLED, false);
 		controller.onJoin(Scene.SINGLEPLAYER);
-		check(!config.isEnabled(), "later worlds should keep the state without reset on world exit");
+		check(!config.get(Toggle.ENABLED), "later worlds should keep the state without reset on world exit");
 		controller.onDisconnect();
 
 		config.setResetOnWorldExit(true);
 		controller.onJoin(Scene.SINGLEPLAYER);
-		check(config.isEnabled(), "reset on world exit should restore the singleplayer default");
+		check(config.get(Toggle.ENABLED), "reset on world exit should restore the singleplayer default");
 		controller.onDisconnect();
 
 		config.setMultiplayerMode(MultiplayerMode.WHITELIST);
 		config.setServers(List.of("a.example.com"));
 		config.setMultiplayerDefault(false);
 		controller.onJoin(SERVER_A);
-		check(!config.isEnabled(), "an allowed server should restore the server default");
+		check(!config.get(Toggle.ENABLED), "an allowed server should restore the server default");
 		controller.onDisconnect();
 	}
 
